@@ -17,23 +17,52 @@
 		public function enhanceTweet($tweet){
 			$imgs  = array();
 			$links = findURLs($tweet['text']);
+
+			foreach($links as $link => $l){
+				$curl = curl_init($link);
+				curl_setopt_array($curl, array(
+								CURLOPT_USERAGENT => "Mozilla/5.0 (Compatible; libCURL)",
+								CURLOPT_TIMEOUT => 5,
+								CURLOPT_RETURNTRANSFER => 1,
+								CURLOPT_FOLLOWLOCATION => 1,
+								CURLOPT_MAXREDIRS => 3,
+								CURLOPT_NOBODY => 1,
+						));
+
+				$longurl = curl_exec($curl);
+				$url = curl_getinfo($curl, CURLINFO_EFFECTIVE_URL);
+				$url = parse_url($url);
+
+				$links[$link] = $url;
+			}
+
 			foreach($links as $link => $l){
 				if(is_array($l) && array_key_exists("host", $l) && array_key_exists("path", $l)){
 					$domain = domain($l['host']);
 					$imgid  = imgid($l['path']);
 					if($imgid){
+						if($domain == "flic.kr"){
+							$imgid = explode("/",$l['path']);
+							$c = count($imgid) - 1;
+							$imgid = $imgid[$c];
+							$imgs[$link] = "http://flic.kr/p/img/".$imgid."_m.jpg";
+						}
 						if($domain == "twitpic.com"){
 							$imgs[$link] = "http://twitpic.com/show/thumb/" . $imgid;
 						}
 						if($domain == "yfrog.com" || $domain == "yfrog.us"){
 							$imgs[$link] = "http://yfrog.com/" . $imgid . ".th.jpg";
 						}
-						if($domain == "tweetphoto.com" || $domain == "pic.gd" || $domain == "plixi.com"){
-							$imgs[$link] = "http://tweetphotoapi.com/api/TPAPI.svc/imagefromurl?size=thumbnail&url=" . $link;
+						if($domain == "tweetphoto.com" || $domain == "pic.gd" || $domain == "plixi.com" || $domain == "lockerz.com"){
+							$imgs[$link] = "http://api.plixi.com/api/tpapi.svc/imagefromurl?size=medium&url=" . $link;
 						}
 						if($domain == "twitgoo.com"){
 							$values = simplexml_load_string(getURL("http://twitgoo.com/api/message/info/" . $imgid));
 							$imgs[$link] = (string) $values->thumburl;
+						}
+						if($domain == "pixi.li"){
+							$values = simplexml_load_string(getURL("http://pixi.li/service/oembed?url=http://pixi.li/".$imgid."&maxwidth=300&format=xml"));
+							$imgs[$link] = (string) $values->url;
 						}
 						if($domain == "img.ly"){
 							$imgs[$link] = "http://img.ly/show/thumb/" . $imgid;
